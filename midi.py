@@ -43,27 +43,23 @@ def convert_observation_to_midi_sequence(observation: List):
     """
     midi_seq = []
     duration = 1
-    held_note = None
     for curr_ts, curr_notes in enumerate(observation):
-        midi_note = note2midi(curr_notes)
-        next_midi_note = observation[curr_ts + 1] if curr_ts + 1 < len(observation) else None
+        pitch = note2midi(curr_notes)
 
-        if next_midi_note and next_midi_note == 1:
-            # special case: we dont add curr_note just yet since we are extending the duration
-            duration += 1
-            held_note = midi_note
-            continue
-
-        if held_note:
-            # note is held from previous ts, and now released
-            midi_seq.append((held_note, duration))
-            # reset duration, held_note
-            held_note = None
-            duration = 1
-
-        # add current ts note, either "note_off" (rest) or a midi pitch
-        midi_seq.append((midi_note, duration))
-
+        if pitch == 0:
+            # note_off or rest
+            midi_seq.append((pitch, duration))
+        elif pitch == 1:
+            # add duration to previous note
+            if midi_seq:
+                pitch, duration = midi_seq[-1]
+                midi_seq[-1] = (pitch, duration + 1)
+            else:
+                # if first note, treat like a rest
+                midi_seq.append((0, duration))
+        else:
+            assert 48 <= pitch <= 83, f"encountered unexpected pitch: {pitch}"
+            midi_seq.append((pitch, duration))
     return midi_seq
 
 
@@ -81,7 +77,7 @@ def convert_to_midi_file(midi_sequence: List, filepath: str):
     midifile.addTempo(TRACK, time, TEMPO)
     for pitch, duration in midi_sequence:
         if pitch != 0:
-            assert 48 <= pitch <= 83
+            assert 48 <= pitch <= 83, f"encountered unexpected pitch: {pitch}"
             midifile.addNote(TRACK, CHANNEL, pitch, time, duration, VOLUME)
 
         # if note_off, just increase time

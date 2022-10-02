@@ -6,12 +6,12 @@ from typing import List
 
 def calc_reward(observation: List):
     """
-    Engineered reward func given some music theory rules:
-    1) Notes be in same key.
+    Engineered reward func from music theory:
+    1) Notes be in same key. Key is determined based on first N notes.
     2) Note within an octave of previous note.
-    3) Notes not repeated.
+    3) Notes not repeated more than K times.
 
-    :param observation:
+    :param observation: List of notes
     :return:
     """
     key_reward = get_key_reward(observation)
