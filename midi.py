@@ -9,19 +9,32 @@ from typing import List
 NUM_TRACKS = 1
 TRACK = CHANNEL = 0  # single track / channel for now
 VOLUME = 100  # fixed volume for now, 0-127
-TEMPO = 60  # BPM
+TEMPO = 160  # BPM
 DURATION = 1  # 1/16 note, in beats
 
-NOTE2MIDI = {
-    0: "note_off",
-    1: "no_event",
-    2: 48,  # C3
-    # ...
-    37: 83  # B5
-}
+
+def note2midi(note: int) -> int:
+    """
+    Mapping of encoded `note` used in RoboNotesEnv to MIDI pitch.
+    Two special encodings used for `note_off` and `no_event`.
+
+    {
+        0: 0,  "note_off",
+        1: 1,  "no_event",
+        2: 48,  C3
+        3: 49,  C#3
+        4: 50,  D3
+        5: 51,  D#3
+        ...
+        37: 83  # B5
+    }
+    """
+    if note == 0 or note == 1:
+        return note
+    return note + 46  # offset
 
 
-def convert_observation_to_midi_sequence(observation: List[List[int]]):
+def convert_observation_to_midi_sequence(observation: List):
     """
     Convert to MIDI pitch sequence.
     Handle "note_off" and "no_event".
@@ -32,11 +45,10 @@ def convert_observation_to_midi_sequence(observation: List[List[int]]):
     duration = 1
     held_note = None
     for curr_ts, curr_notes in enumerate(observation):
-        if len(curr_notes) > 1:
-            raise ValueError("Multiple tracks not supported yet. Expect only one note per ts.")
-        midi_note = NOTE2MIDI[curr_notes[0]]
-        next_midi_note = observation[curr_ts + 1]
-        if next_midi_note == "no_event":
+        midi_note = note2midi(curr_notes)
+        next_midi_note = observation[curr_ts + 1] if curr_ts + 1 < len(observation) else None
+
+        if next_midi_note and next_midi_note == 1:
             # special case: we dont add curr_note just yet since we are extending the duration
             duration += 1
             held_note = midi_note
@@ -57,8 +69,10 @@ def convert_observation_to_midi_sequence(observation: List[List[int]]):
 
 def convert_to_midi_file(midi_sequence: List, filepath: str):
     """
-    An encoding
+    Convert to MIDI file and save at filepath.
+    Can use free web tools to play, ex. https://midiplayer.ehubsoft.net/
     :param midi_sequence:
+    :param filepath
     :return:
     """
     midifile = MIDIFile(NUM_TRACKS)
@@ -66,7 +80,8 @@ def convert_to_midi_file(midi_sequence: List, filepath: str):
     time = 0
     midifile.addTempo(TRACK, time, TEMPO)
     for pitch, duration in midi_sequence:
-        if pitch != "note_off":
+        if pitch != 0:
+            assert 48 <= pitch <= 83
             midifile.addNote(TRACK, CHANNEL, pitch, time, duration, VOLUME)
 
         # if note_off, just increase time
