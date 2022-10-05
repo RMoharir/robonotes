@@ -44,7 +44,7 @@ class RoboNotesEnv(Env):
         self.collected_reward = 0
         return self.state, info
 
-    def step(self, action):
+    def step(self, action: int):
         assert self.action_space.contains(action)
         truncated = False
 

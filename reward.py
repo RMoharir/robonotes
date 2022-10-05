@@ -4,6 +4,16 @@ This file contains implementation for the music theory reward function.
 from typing import List
 
 
+NEUTRAL = 0
+OCTAVE_STEPS = 12
+OCTAVE_REWARD = 1
+OCTAVE_PENALTY = -5
+REPEAT_PENALTY = -5
+KEY_REWARD = 1
+KEY_PENALTY = -5
+KEY_STEPS = [0, 2, 4, 5, 7, 9, 11]
+
+
 def calc_reward(observation: List):
     """
     Engineered reward func from music theory:
@@ -34,7 +44,14 @@ def get_repeat_reward(observation: List) -> float:
     :param observation:
     :return:
     """
-    return -1
+    if len(observation) < 2:
+        return NEUTRAL
+
+    current_note = observation[-1]
+    prev_note = observation[-2]
+    if current_note == prev_note and current_note > 1:
+        return REPEAT_PENALTY
+    return NEUTRAL
 
 
 def get_octave_reward(observation: List) -> float:
@@ -43,7 +60,14 @@ def get_octave_reward(observation: List) -> float:
     :param observation:
     :return:
     """
-    return -1
+    if len(observation) < 2:
+        return NEUTRAL
+    current_note = observation[-1]
+    prev_note = observation[-2]
+    if abs(current_note - prev_note) <= OCTAVE_STEPS:
+        return OCTAVE_REWARD
+    # penalize if not in same octave
+    return OCTAVE_PENALTY
 
 
 def get_key_reward(observation: List) -> float:
@@ -52,9 +76,16 @@ def get_key_reward(observation: List) -> float:
     :param observation:
     :return:
     """
-    key_reward = 0
-    for note in observation:
-        # if note is in the same key, add
-        # if note in different key, penalize
-        pass
-    return key_reward
+    def is_in_key(ob, key):
+        if abs(ob - key) % OCTAVE_STEPS in KEY_STEPS:
+            return True
+        return False
+
+    if len(observation) < 2:
+        return NEUTRAL
+    key = [ob for ob in observation if ob not in {0, 1}][0]
+
+    current_note = observation[-1]
+    if is_in_key(current_note, key):
+        return KEY_REWARD
+    return KEY_PENALTY

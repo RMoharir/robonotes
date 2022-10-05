@@ -6,6 +6,7 @@ Example usage:
 """
 from env import RoboNotesEnv
 import argparse
+from utils import plot_performance
 
 MIDI_SAVEDIR = "./samples/random/"
 
@@ -20,9 +21,12 @@ def run(args):
         while not terminated:
             action = env.action_space.sample()
             state, reward, terminated, truncated, info = env.step(action)
+            plot.append(reward)
             if terminated:
                 env.render()
                 env.reset()
+    if args.show_plot:
+        plot_performance(plot)
 
     env.close()
 
