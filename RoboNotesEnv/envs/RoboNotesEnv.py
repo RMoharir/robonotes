@@ -47,22 +47,19 @@ class RoboNotesEnv(Env):
         return self.state
 
     def step(self, action: int):
-        #assert self.action_space.contains(action)
-        #truncated = False
+        assert self.action_space.contains(action)
+        truncated = False
 
-        #print("Action taken is: " + (str)(action))
         self.state = action
         self.observations.append(action)
-
         reward, info = calc_reward(self.observations)
-
         self.collected_reward += reward
 
         # check to see if end of song has been reached
         terminated = len(self.observations) >= self.max_trajectory_len
         return self.state, reward, terminated, info
 
-    def render(self, mode='human'):
+    def render(self):
         """
         We render the current state by printing the encoded actions and its corresponding MIDI sequence.
         TODO: can try to render and/or play MIDI file directly
