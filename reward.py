@@ -76,6 +76,7 @@ def get_key_reward(observation: List) -> float:
     :param observation:
     :return:
     """
+    #print(observation)
     def is_in_key(ob, key):
         if abs(ob - key) % OCTAVE_STEPS in KEY_STEPS:
             return True
@@ -83,7 +84,8 @@ def get_key_reward(observation: List) -> float:
 
     if len(observation) < 2:
         return NEUTRAL
-    key = [ob for ob in observation if ob not in {0, 1}][0]
+    
+    key = [ob for ob in observation][0]
 
     current_note = observation[-1]
     if is_in_key(current_note, key):
