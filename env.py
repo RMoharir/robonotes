@@ -8,6 +8,7 @@ from midi import convert_observation_to_midi_sequence
 from midi import convert_to_midi_file
 import numpy as np
 
+
 class RoboNotesEnv(Env):
     """
     A music composition environment.
@@ -24,56 +25,61 @@ class RoboNotesEnv(Env):
         """
         super(RoboNotesEnv, self).__init__()
 
-        self.action_space = spaces.Discrete(38)  # choose from 36 pitches, with 2 special actions (note_off, no_event)
-        self.observation_space = spaces.Discrete(38)  # obv is the sequence of notes so far
-
-        self.state = 0
-        self.observations = []
-        self.collected_reward = 0
+        # choose from 36 pitches, with 2 special actions (0=no_event, 1=note_off)
+        self.action_space = spaces.Discrete(38)
+        # observation space is the sequence of notes of max_trajectory_len
+        self.observation_space = spaces.Box(low=0, high=37, shape=(max_trajectory_len,), dtype=int)
 
         self.max_trajectory_len = max_trajectory_len
         self.midi_savedir = midi_savedir
+
+        self.obs_trajectory = self.get_initial_ob()
+        self.trajectory_idx = 0  # which index of self.obs_trajectory are we at
+        self.total_reward = 0  # reward of self.obs_trajectory
+
+    def get_initial_ob(self) -> np.ndarray:
+        # action=0 means no_event
+        return np.zeros(self.max_trajectory_len, dtype='int')
 
     def reset(
             self,
             *,
             seed: Optional[int] = None,
             options: Optional[dict] = None,
-    ) -> Tuple[List, dict]:
-        info = {}
-        self.state = 0
-        self.observations = []
-        self.collected_reward = 0
-        return self.state
+    ) -> Tuple[np.ndarray, dict]:
+        super(RoboNotesEnv, self).reset(seed=seed)
 
-    def step(self, action: int):
-        #assert self.action_space.contains(action)
-        #truncated = False
+        self.obs_trajectory = self.get_initial_ob()
+        self.total_reward = 0
+        self.trajectory_idx = 0
+        return self.obs_trajectory, {}
 
-        #print("Action taken is: " + (str)(action))
-        self.state = action
-        self.observations.append(action)
+    def step(self, action: int) -> Tuple[np.ndarray, float, bool, bool, dict]:
+        self.obs_trajectory[self.trajectory_idx] = action
 
-        reward, info = calc_reward(self.observations)
-
-        self.collected_reward += reward
+        reward, info = calc_reward(list(self.obs_trajectory))
+        self.total_reward += reward
 
         # check to see if end of song has been reached
-        terminated = len(self.observations) >= self.max_trajectory_len
-        return self.state, reward, terminated, info
+        self.trajectory_idx += 1
+        terminated = self.trajectory_idx >= self.max_trajectory_len
+        # always False for now
+        truncated = False
+        return self.obs_trajectory, reward, terminated, truncated, info
 
     def render(self, mode='human'):
         """
         We render the current state by printing the encoded actions and its corresponding MIDI sequence.
         TODO: can try to render and/or play MIDI file directly
         """
-        midi_sequence = convert_observation_to_midi_sequence(self.observations)
-        print(f"Total reward: {self.collected_reward}")
-        print(f"Current state is: {self.state}")
+        render_trajectory = list(self.obs_trajectory)
+        midi_sequence = convert_observation_to_midi_sequence(render_trajectory)
+        print(f"Total reward: {self.total_reward}")
+        print(f"Current state is: {render_trajectory}")
         print(f"MIDI sequence: {midi_sequence}")
 
         if self.midi_savedir:
             t = time.localtime()
             timestamp = time.strftime('%m-%d-%y_%H%M', t)
-            fname = f"ts{timestamp}_ep{len(self.observations)}.midi"
+            fname = f"ts{timestamp}_ep{len(render_trajectory)}.midi"
             convert_to_midi_file(midi_sequence, os.path.join(self.midi_savedir, fname))

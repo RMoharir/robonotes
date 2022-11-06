@@ -2,7 +2,7 @@
 Runs the random agent.
 
 Example usage:
-    python ./run_random.py --save_midi --max_trajectory_len 20
+    python ./run_scripts/run_random.py --save_midi --max_trajectory_len 20
 """
 from env import RoboNotesEnv
 import argparse
@@ -27,7 +27,7 @@ def run(args):
         while not terminated:
             action = env.action_space.sample()
 
-            state, reward, terminated, info = env.step(action)
+            state, reward, terminated, truncated, info = env.step(action)
             plot.append(reward)
             if terminated:
                 env.render()

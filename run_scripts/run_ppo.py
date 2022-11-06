@@ -12,7 +12,7 @@ from stable_baselines3 import PPO
 from stable_baselines3.common.env_checker import check_env
 from stable_baselines3.common.vec_env import DummyVecEnv
 
-MIDI_SAVEDIR = "./samples/random/"
+MIDI_SAVEDIR = "./samples/ppo/"
 
 
 def run_ppo(args):
@@ -23,7 +23,6 @@ def run_ppo(args):
 
     model = PPO("MlpPolicy", env, verbose=1)
     model.learn(total_timesteps=25000)
-    model.save("ppo")
 
     plot = []
 
