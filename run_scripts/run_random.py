@@ -8,9 +8,7 @@ from env import RoboNotesEnv
 import argparse
 from utils import plot_performance
 
-from stable_baselines3 import PPO
 from stable_baselines3.common.env_checker import check_env
-from stable_baselines3.common.vec_env import DummyVecEnv
 
 MIDI_SAVEDIR = "./samples/random/"
 
@@ -39,34 +37,6 @@ def run(args):
 
     env.close()
 
-def run_on_policy(args):
-    midi_savedir = MIDI_SAVEDIR if args.save_midi else None
-
-    env = DummyVecEnv([lambda: RoboNotesEnv(max_trajectory_len=args.max_trajectory_len, midi_savedir=midi_savedir)])
-
-    model = PPO("MlpPolicy", env, verbose=1)
-    model.learn(total_timesteps=25000)
-    model.save("ppo")
-
-    plot = []
-
-    for _ in range(args.num_trajectories):
-        terminated = False
-        state = env.reset()
-        while not terminated:
-            action, _states = model.predict(state)
-
-            state, reward, terminated, info = env.step(action)
-
-            plot.append(reward)
-
-            env.render()
-
-
-    if args.show_plot:
-        plot_performance(plot)
-
-    env.close()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
