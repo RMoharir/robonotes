@@ -34,7 +34,7 @@ def train_loop(model, timesteps, log_interval, progress_bar=True):
     model.learn(total_timesteps=timesteps, log_interval=log_interval, progress_bar=progress_bar)
 
 
-def sample_test_trajectory(model, env, num_trajectories=20, midi_savedir=None):
+def sample_test_trajectory(model, env, num_trajectories=20):
     """
     Test the model by sampling trajectories and render() after each one (saves MIDI if path provided)
     :param model:
@@ -69,7 +69,7 @@ def run_dqn(args, log_dir):
         if args.save_model:
             model.save(f"{log_dir}/dqn")
 
-    sample_test_trajectory(model, env, midi_savedir=midi_savedir)
+    sample_test_trajectory(model, env)
 
 
 if __name__ == "__main__":
