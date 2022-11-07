@@ -2,112 +2,119 @@
 This file contains implementation for the music theory reward function.
 """
 from typing import List
+from typing import Dict
+from typing import Tuple
 
 import numpy as np
+import statsmodels.api as sm
 
 # consts
 NEUTRAL = 0
 
-# same octave
+# penalize jump by more than an octave
 OCTAVE_STEPS = 12
-OCTAVE_REWARD = 5
-OCTAVE_PENALTY = -5
+OCTAVE_PENALTY = -1
 
-# no repeating notes
-REPEAT_REWARD = 10
-REPEAT_PENALTY = -50
+# penalize repeating notes
+REPEAT_PENALTY = -1
 
-# same key
-KEY_REWARD = 10
-KEY_PENALTY = -20
+# reward same key
+END_ON_TONIC_REWARD = 5
+KEY_REWARD = 5
 KEY_STEPS = [0, 2, 4, 5, 7, 9, 11]
 
-# not empty
-FIRST_NOTE_PENALTY = -100
-EMPTY_PENALTY = -10
+# penalize if empty
+EMPTY_PENALTY = -2
+EMPTY_NOTES = {0, 1}
+
+# reward diversity (correlation < 0.15)
+DIVERSITY_REWARD = 2
 
 
-def calc_reward(observation: np.ndarray, trajectory_idx: int):
+def calc_reward(observation: np.ndarray, trajectory_idx: int) -> Tuple[float, Dict]:
     """
-    Engineered reward func from music theory:
+    Hand engineered reward based on music theory:
 
-    1) Notes be in same key. Key is determined based on first N notes
-    2) Note within an octave of previous note
-    3) Notes should not repeat too many times
-    4) Trajectory should not be empty
+    1) Reward notes in same key. Key is determined to be the first note in composition.
+    2) Penalize if note is greater than an octave of previous note.
+    3) Penalize if same note repeat too many times in a row.
+    4) Penalize empty notes.
+    5) Reward diversity in composition
 
-    :param observation:
+    :param observation: of length max_trajectory_len
     :param trajectory_idx: curr idx of the trajectory (only calculate reward for trajectory up to idx)
     :return:
     """
     assert trajectory_idx > 0
-    trajectory = list(observation)[:trajectory_idx]
+    observation = list(observation)
+    trajectory = observation[:trajectory_idx]
 
-    key_reward = get_key_reward(trajectory)
-    octave_reward = get_octave_reward(trajectory)
+    key_reward = get_key_reward(trajectory, is_terminal=(trajectory_idx == len(observation)))
+    octave_penalty = get_octave_penalty(trajectory)
     repeat_penalty = get_repeat_penalty(trajectory)
     empty_penalty = get_empty_penalty(trajectory)
+    diversity_reward = get_diversity_reward(trajectory)
 
     # TODO can weight each type of reward
-    total_reward = key_reward + octave_reward + repeat_penalty + empty_penalty
+    total_reward = key_reward + octave_penalty + repeat_penalty + empty_penalty + diversity_reward
     info = {
         "key_reward": key_reward,
-        "octave_reward": octave_reward,
+        "octave_penalty": octave_penalty,
         "repeat_penalty": repeat_penalty,
         "empty_penalty": empty_penalty,
+        "diversity_reward": diversity_reward
     }
     return total_reward, info
 
 
 def get_empty_penalty(observation: List) -> float:
-    if len(observation) == 1 and observation[0] in {0, 1}:
-        return FIRST_NOTE_PENALTY
-
-    if observation[-1] in {0, 1}:
-        return EMPTY_PENALTY
-
-    return NEUTRAL
+    """
+    Penalize if last note(s) are empty.
+    The longer the sequence of empty notes, the higher the penalty.
+    """
+    # penalty increases with consecutive empty notes from last note
+    num_empty = 0
+    for ob in reversed(observation):
+        if ob in EMPTY_NOTES:
+            num_empty += 1
+        break
+    return num_empty * EMPTY_PENALTY
 
 
 def get_repeat_penalty(observation: List) -> float:
     """
-    Penalize if too many repeating notes.
+    Penalize repeated notes of more than three.
+    """
+    current_note = observation[-1]
+    num_repeat = 0
+    for ob in reversed(observation):
+        if ob == current_note:
+            num_repeat += 1
+        break
+    num_repeat -= 1
+    assert num_repeat >= 0
+    return num_repeat * REPEAT_PENALTY
 
-    :param observation:
-    :return:
+
+def get_octave_penalty(observation: List) -> float:
+    """
+    Penalize if note jumped by more than one octave.
     """
     if len(observation) < 2:
         return NEUTRAL
 
     current_note = observation[-1]
     prev_note = observation[-2]
-    if current_note == prev_note:
-        return REPEAT_PENALTY
+    if abs(current_note - prev_note) > OCTAVE_STEPS:
+        return OCTAVE_PENALTY
 
-    return REPEAT_REWARD
+    return NEUTRAL
 
 
-def get_octave_reward(observation: List) -> float:
+def get_key_reward(observation: List, is_terminal=False) -> float:
     """
-    Return reward for consecutive notes being in the same octave.
-    :param observation:
-    :return:
-    """
-    if len(observation) < 2:
-        return NEUTRAL
-    current_note = observation[-1]
-    prev_note = observation[-2]
-    if abs(current_note - prev_note) <= OCTAVE_STEPS:
-        return OCTAVE_REWARD
-    # penalize if not in same octave
-    return OCTAVE_PENALTY
-
-
-def get_key_reward(observation: List) -> float:
-    """
-    We do the simplest thing and return first note as the key.
-    :param observation:
-    :return:
+    Reward if note is same key (first note).
+    Reward heavily if end on tonic note.
     """
     def is_in_key(ob, key):
         if abs(ob - key) % OCTAVE_STEPS in KEY_STEPS:
@@ -116,10 +123,28 @@ def get_key_reward(observation: List) -> float:
 
     if len(observation) < 2:
         return NEUTRAL
-    
-    key = [ob for ob in observation][0]
 
+    key = observation[0]
     current_note = observation[-1]
     if is_in_key(current_note, key):
+        if is_terminal:
+            return END_ON_TONIC_REWARD
         return KEY_REWARD
-    return KEY_PENALTY
+
+    return NEUTRAL
+
+
+def get_diversity_reward(observation: List) -> float:
+    """
+    Reward diversity of notes.
+    """
+    # cannot calculate correlation if all items the same
+    if len(set(observation)) <= 1:
+        return NEUTRAL
+
+    # calculate auto-correlation for 1, 2, 3 lags
+    acorr = sm.tsa.acf(observation, nlags=3)
+    # first position is 1.0 because lag=0 is always correlated with itself
+    acorr = acorr[1:]
+    diversity_multiplier = len([x for x in acorr if abs(x) < 0.15])
+    return diversity_multiplier * DIVERSITY_REWARD
