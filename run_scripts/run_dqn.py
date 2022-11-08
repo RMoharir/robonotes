@@ -42,16 +42,16 @@ def sample_test_trajectory(model, env, num_trajectories=20):
     :param num_trajectories:
     :return: List of trajectories and List of their total rewards
     """
-    obs, _ = env.reset()
+    obs = env.reset()
 
     for _ in range(num_trajectories):
         terminated = False
         while not terminated:
             action, _states = model.predict(obs)
-            state, reward, terminated, _, info = env.step(action)
+            state, reward, terminated, info = env.step(action)
         if terminated:
             env.render()
-            obs, _ = env.reset()
+            obs = env.reset()
         # if using model.get_env()
         # final_trajectory = env.buf_infos[0]['terminal_observation']
         # RoboNotesEnv.save_midi(final_trajectory, midi_savedir)
