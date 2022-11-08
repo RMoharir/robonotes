@@ -2,29 +2,42 @@
 Runs the random agent.
 
 Example usage:
-    python ./run_random.py --save_midi --max_trajectory_len 20
+    python ./run_ppo.py --save_midi --max_trajectory_len 20
 """
 from env import RoboNotesEnv
 import argparse
 from utils import plot_performance
 
-MIDI_SAVEDIR = "./samples/random/"
+from stable_baselines3 import PPO
+from stable_baselines3.common.env_checker import check_env
+from stable_baselines3.common.vec_env import DummyVecEnv
+
+MIDI_SAVEDIR = "./samples/ppo/"
 
 
-def run(args):
+def run_ppo(args):
     midi_savedir = MIDI_SAVEDIR if args.save_midi else None
 
-    env = RoboNotesEnv(max_trajectory_len=args.max_trajectory_len, midi_savedir=midi_savedir)
+    env = DummyVecEnv([lambda: RoboNotesEnv(max_trajectory_len=args.max_trajectory_len, midi_savedir=midi_savedir)])
+    check_env(env)
+
+    model = PPO("MlpPolicy", env, verbose=1)
+    model.learn(total_timesteps=25000)
+
     plot = []
+
     for _ in range(args.num_trajectories):
         terminated = False
+        state = env.reset()
         while not terminated:
-            action = env.action_space.sample()
-            state, reward, terminated, truncated, info = env.step(action)
+            action, _states = model.predict(state)
+
+            state, reward, terminated, info = env.step(action)
+
             plot.append(reward)
-            if terminated:
-                env.render()
-                env.reset()
+
+            env.render()
+
     if args.show_plot:
         plot_performance(plot)
 
@@ -39,4 +52,4 @@ if __name__ == "__main__":
                         help="Length of music composition (number of beats)")
     parser.add_argument("--num_trajectories", type=int, default=1, required=False, help="Number of times to run agent")
     args = parser.parse_args()
-    run(args)
+    run_ppo(args)

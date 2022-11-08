@@ -8,4 +8,4 @@ def plot_performance(rewards_plot):
     """
     plt.plot(rewards_plot)
     plt.title("Rewards vs. Trajectory Timesteps")
-    plt.show()
+    plt.savefig("rewardsVsTrajectoryTimesteps.png")

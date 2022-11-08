@@ -1,7 +1,7 @@
 """
 This file contains utils for converting to and from MIDI files
 """
-
+import numpy as np
 from midiutil import MIDIFile
 from typing import List
 
@@ -19,8 +19,8 @@ def note2midi(note: int) -> int:
     Two special encodings used for `note_off` and `no_event`.
 
     {
-        0: 0,  "note_off",
-        1: 1,  "no_event",
+        0: 0,  "no_event",
+        1: 1,  "note_ff",
         2: 48,  C3
         3: 49,  C#3
         4: 50,  D3
@@ -46,10 +46,10 @@ def convert_observation_to_midi_sequence(observation: List):
     for curr_ts, curr_notes in enumerate(observation):
         pitch = note2midi(curr_notes)
 
-        if pitch == 0:
+        if pitch == 1:
             # note_off or rest
             midi_seq.append((pitch, duration))
-        elif pitch == 1:
+        elif pitch == 0:
             # add duration to previous note
             if midi_seq:
                 pitch, duration = midi_seq[-1]
