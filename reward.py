@@ -7,6 +7,8 @@ from typing import Tuple
 
 import numpy as np
 import statsmodels.api as sm
+from scipy.stats import entropy
+
 
 # consts
 NEUTRAL = 0
@@ -25,10 +27,12 @@ KEY_STEPS = [0, 2, 4, 5, 7, 9, 11]
 
 # penalize if empty
 EMPTY_PENALTY = -2
+EMPTY_ON_FIRST = -100
 EMPTY_NOTES = {0, 1}
 
 # reward diversity (correlation < 0.15)
-DIVERSITY_REWARD = 2
+# DIVERSITY_REWARD = 5
+DIVERSITY_PENALTY = -2
 
 
 def calc_reward(observation: np.ndarray, trajectory_idx: int) -> Tuple[float, Dict]:
@@ -72,12 +76,16 @@ def get_empty_penalty(observation: List) -> float:
     Penalize if last note(s) are empty.
     The longer the sequence of empty notes, the higher the penalty.
     """
+    # super discourage empty on first note
+    if len(observation) == 1 and observation[0] in EMPTY_NOTES:
+        return EMPTY_ON_FIRST
     # penalty increases with consecutive empty notes from last note
     num_empty = 0
     for ob in reversed(observation):
         if ob in EMPTY_NOTES:
             num_empty += 1
-        break
+        else:
+            break
     return num_empty * EMPTY_PENALTY
 
 
@@ -90,7 +98,8 @@ def get_repeat_penalty(observation: List) -> float:
     for ob in reversed(observation):
         if ob == current_note:
             num_repeat += 1
-        break
+        else:
+            break
     num_repeat -= 1
     assert num_repeat >= 0
     return num_repeat * REPEAT_PENALTY
@@ -117,14 +126,14 @@ def get_key_reward(observation: List, is_terminal=False) -> float:
     Reward heavily if end on tonic note.
     """
     def is_in_key(ob, key):
-        if abs(ob - key) % OCTAVE_STEPS in KEY_STEPS:
+        if key is not None and abs(ob - key) % OCTAVE_STEPS in KEY_STEPS:
             return True
         return False
 
     if len(observation) < 2:
         return NEUTRAL
 
-    key = observation[0]
+    key = observation[0] if observation[0] not in {0, 1} else None
     current_note = observation[-1]
     if is_in_key(current_note, key):
         if is_terminal:
@@ -143,8 +152,21 @@ def get_diversity_reward(observation: List) -> float:
         return NEUTRAL
 
     # calculate auto-correlation for 1, 2, 3 lags
-    acorr = sm.tsa.acf(observation, nlags=3)
+    # acorr = sm.tsa.acf(observation, nlags=3)
     # first position is 1.0 because lag=0 is always correlated with itself
-    acorr = acorr[1:]
-    diversity_multiplier = len([x for x in acorr if abs(x) < 0.15])
-    return diversity_multiplier * DIVERSITY_REWARD
+    # acorr_lag1, acorr_lag2, acorr_lag3 = acorr[1:]
+    # diversity_multiplier = len([x for x in acorr if abs(x) < 0.15])
+
+    # try entropy instead
+    _, counts = np.unique(observation, return_counts=True)
+    h = entropy(counts) / len(observation)
+    # max entropy for len observations, counts = 1 for all positions
+    max_entropy = entropy([1] * len(observation)) / len(observation)
+    # min entropy for len observations
+    min_entropy = entropy([1] + [len(observation) - 1]) / len(observation)
+    # if h > 0.5 * max_entropy:
+    #     return DIVERSITY_REWARD
+    if h < 1.25 * min_entropy:
+        return DIVERSITY_PENALTY
+
+    return NEUTRAL

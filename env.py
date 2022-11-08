@@ -55,6 +55,7 @@ class RoboNotesEnv(Env):
         self.obs_trajectory = self.get_initial_ob()
         self.total_reward = 0
         self.trajectory_idx = 0
+        self.partial_rewards = defaultdict(int)
         return self.obs_trajectory, {}
 
     def step(self, action: int) -> Tuple[np.ndarray, float, bool, bool, dict]:

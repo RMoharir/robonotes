@@ -3,4 +3,5 @@ matplotlib==3.6.0
 gym==0.26.2
 # we need this version of SB3 to use newer version of gym (0.24+)
 git+https://github.com/carlosluis/stable-baselines3@fix_tests
-statsmodels
+statsmodel
+tensorflow

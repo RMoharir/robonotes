@@ -2,7 +2,7 @@
 Runs the random agent.
 
 Example usage:
-    python ./run_scripts/run_dqn.py --exp_name first_test --save_midi
+    python ./run_scripts/run_dqn.py --exp_name dqn --save_model --total_timesteps 5000000
 """
 import os
 import time
@@ -51,7 +51,7 @@ def sample_test_trajectory(model, env, num_trajectories=20):
             state, reward, terminated, _, info = env.step(action)
         if terminated:
             env.render()
-            env.reset()
+            obs, _ = env.reset()
         # if using model.get_env()
         # final_trajectory = env.buf_infos[0]['terminal_observation']
         # RoboNotesEnv.save_midi(final_trajectory, midi_savedir)
