@@ -1,4 +1,4 @@
-from typing import Optional, Tuple
+from typing import Optional, Tuple, List
 import time
 import os
 
@@ -49,16 +49,16 @@ class RoboNotesEnv(Env):
             *,
             seed: Optional[int] = None,
             options: Optional[dict] = None,
-    ) -> np.ndarray:
-        super(RoboNotesEnv, self)
+    ) -> Tuple[np.ndarray, dict]:
+        super(RoboNotesEnv, self).reset(seed=seed)
 
         self.obs_trajectory = self.get_initial_ob()
         self.total_reward = 0
         self.trajectory_idx = 0
         self.partial_rewards = defaultdict(int)
-        return self.obs_trajectory
+        return self.obs_trajectory, {}
 
-    def step(self, action: int) -> Tuple[np.ndarray, float, bool, dict]:
+    def step(self, action: int) -> Tuple[np.ndarray, float, bool, bool, dict]:
         self.obs_trajectory[self.trajectory_idx] = action
         self.trajectory_idx += 1
 
@@ -71,7 +71,7 @@ class RoboNotesEnv(Env):
         truncated = False
         for k, v in info.items():
             self.partial_rewards[k] += v
-        return self.obs_trajectory, reward, terminated, info
+        return self.obs_trajectory, reward, terminated, truncated, info
 
     @staticmethod
     def save_midi(trajectory: np.ndarray, midi_savedir):

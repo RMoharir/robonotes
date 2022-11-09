@@ -3,6 +3,7 @@ Runs the random agent.
 
 Example usage:
     python ./run_scripts/run_dqn.py --exp_name dqn --save_model --total_timesteps 5000000
+    python ./run_scripts/run_dqn.py --exp_name dqn --load_model_path run_logs/dqn_08-11-2022_01-10-58/dqn.zip --save_midi
 """
 import os
 import time
@@ -35,23 +36,23 @@ def train_loop(model, timesteps, log_interval, test_interval, progress_bar=True)
     model.learn(total_timesteps=timesteps, log_interval=log_interval, progress_bar=progress_bar)
 
 
-def sample_test_trajectory(model, env, num_trajectories=20):
+def sample_test_trajectory(model, env, num_trajectories=10):
     """
     Test the model by sampling trajectories and render() after each one (saves MIDI if path provided)
     :param model:
     :param num_trajectories:
     :return: List of trajectories and List of their total rewards
     """
-    obs = env.reset()
+    obs, _ = env.reset()
 
     for _ in range(num_trajectories):
         terminated = False
         while not terminated:
             action, _states = model.predict(obs)
-            state, reward, terminated, info = env.step(action)
+            state, reward, terminated, _, info = env.step(action)
         if terminated:
             env.render()
-            obs = env.reset()
+            obs, _ = env.reset()
         # if using model.get_env()
         # final_trajectory = env.buf_infos[0]['terminal_observation']
         # RoboNotesEnv.save_midi(final_trajectory, midi_savedir)
@@ -116,18 +117,20 @@ if __name__ == "__main__":
     parser.add_argument("--load_model_path", type=str,
                         help="If provided, path of the dqn model to load.", required=False)
     args = parser.parse_args()
-    print("\n\n\nARGS: ", args, "\n\n\n")
+    print("\nARGS: ", args, "\n")
 
     data_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), '../run_logs')
 
     if not (os.path.exists(data_path)):
         os.makedirs(data_path)
 
-    logdir = args.exp_name + '_' + time.strftime("%d-%m-%Y_%H-%M-%S")
-    logdir = os.path.join(data_path, logdir)
-    if not(os.path.exists(logdir)):
-        os.makedirs(logdir)
-
-    print("\n\n\nLOGGING TO: ", logdir, "\n\n\n")
+    if args.load_model_path:
+        logdir = None
+    else:
+        logdir = args.exp_name + '_' + time.strftime("%d-%m-%Y_%H-%M-%S")
+        logdir = os.path.join(data_path, logdir)
+        if not(os.path.exists(logdir)):
+            os.makedirs(logdir)
+        print("\nLOGGING TO: ", logdir, "\n")
 
     run_dqn(args, log_dir=logdir)

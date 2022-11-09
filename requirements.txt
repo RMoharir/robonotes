@@ -1,6 +1,6 @@
 MIDIUtil==1.2.1
 matplotlib==3.6.0
-gym==0.21.0
+gym==0.26.2
 statsmodel
 tensorflow
-stable-baselines2==1.6.2
+git+https://github.com/carlosluis/stable-baselines3@fix_tests
