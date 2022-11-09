@@ -2,8 +2,11 @@
 Runs the random agent.
 
 Example usage:
-    python ./run_ppo.py --save_midi --max_trajectory_len 20
+    python ./run_scripts/run_ppo.py --exp_name ppo --save_model --total_timesteps 50
 """
+import os
+import time
+
 from env import RoboNotesEnv
 import argparse
 from utils import plot_performance
@@ -14,42 +17,112 @@ from stable_baselines3.common.vec_env import DummyVecEnv
 
 MIDI_SAVEDIR = "./samples/ppo/"
 
+def create_ppo_model(env, args, log_dir=None):
+    model = PPO("MlpPolicy", env,
+                learning_rate=args.learning_rate,
+                batch_size=args.batch_size,
+                tensorboard_log=log_dir)
 
-def run_ppo(args):
+    return model
+
+def train_loop(model, timesteps, log_interval, test_interval, progress_bar=True):
+    #TODO: add EvalCallback to use test_interval
+    model.learn(total_timesteps=timesteps, log_interval=log_interval, progress_bar=progress_bar)
+
+
+def sample_test_trajectory(model, env, num_trajectories=20):
+    """
+    Test the model by sampling trajectories and render() after each one (saves MIDI if path provided)
+    :param model:
+    :param num_trajectories:
+    :return: List of trajectories and List of their total rewards
+    """
+    obs, _ = env.reset()
+
+    for _ in range(num_trajectories):
+        terminated = False
+        while not terminated:
+            action, _states = model.predict(obs)
+            state, reward, terminated, _, info = env.step(action)
+        if terminated:
+            env.render()
+            obs, _ = env.reset()
+
+def run_ppo(args, log_dir=None):
     midi_savedir = MIDI_SAVEDIR if args.save_midi else None
-
-    env = DummyVecEnv([lambda: RoboNotesEnv(max_trajectory_len=args.max_trajectory_len, midi_savedir=midi_savedir)])
+    
+    env = RoboNotesEnv(max_trajectory_len=args.max_trajectory_len, midi_savedir=midi_savedir)
     check_env(env)
+
+    model = create_ppo_model(env, args, log_dir=log_dir)
 
     model = PPO("MlpPolicy", env, verbose=1)
     model.learn(total_timesteps=25000)
 
-    plot = []
+    if args.load_model_path:
+        print(f"Skipping training. Loading model from path: {args.load_model_path}")
+        model = model.load(args.load_model_path)
+    else:
+        print(f"Start training.")
+        train_loop(
+            model,
+            timesteps=args.total_timesteps,
+            test_interval=args.test_interval,
+            log_interval=args.log_interval
+        )
+        if args.save_model:
+            model.save(f"{log_dir}/ppo")
 
-    for _ in range(args.num_trajectories):
-        terminated = False
-        state = env.reset()
-        while not terminated:
-            action, _states = model.predict(state)
-
-            state, reward, terminated, info = env.step(action)
-
-            plot.append(reward)
-
-            env.render()
-
-    if args.show_plot:
-        plot_performance(plot)
-
-    env.close()
+    print("Finished. Sampling test trajectories.")
+    sample_test_trajectory(model, env)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--save_midi", action="store_true", help="Whether or not to save MIDI output")
-    parser.add_argument("--show_plot", action="store_true", help="Whether or not to show performance plot")
+    parser.add_argument("--exp_name", type=str, required=True, help="name the experiment, for log dir")
+
+    # train parameters
+    parser.add_argument("--total_timesteps", type=int, default=10000000, required=False,
+                        help="number of timesteps (env steps) to train")
+    parser.add_argument("--log_interval", type=int, default=100, required=False,
+                        help="number of timesteps before logging")
+    parser.add_argument("--test_interval", type=int, default=100000, required=False,
+                        help="number of timesteps before testing")
+    parser.add_argument("--learning_rate", type=float, default=0.0003, required=False,
+                        help="learning rate")
+    parser.add_argument("--batch_size", type=float, default=64, required=False,
+                        help="minibatch size")
+    parser.add_argument("--n_epochs", type=int, default=10, required=False,
+                        help="number of epoch when optimizing the surrogate loss")
+    parser.add_argument("--gamma", type=float, default=0.99, required=False,
+                        help="discount factor")
+    parser.add_argument("--gae_lambda", type=float, default=0.95, required=False,
+                        help="factor for trade-off of bias vs variance for Generalized Advantage Estimator")
+    parser.add_argument("--n_steps", type=int, default=2048, required=False,
+                        help="number of steps to run for each environment per update")
+    parser.add_argument("--normalize_advantage", type=bool, default=True, required=False,
+                        help="Whether to normalize or not the advantage")
+    # env parameters
     parser.add_argument("--max_trajectory_len", type=int, default=20, required=False,
                         help="Length of music composition (number of beats)")
-    parser.add_argument("--num_trajectories", type=int, default=1, required=False, help="Number of times to run agent")
+    # other parameters
+    parser.add_argument("--save_midi", action="store_true", help="Whether or not to save MIDI output")
+    parser.add_argument("--save_model", action="store_true", help="Whether or not to save trained dqn model")
+    parser.add_argument("--load_model_path", type=str,
+                        help="If provided, path of the dqn model to load.", required=False)
     args = parser.parse_args()
-    run_ppo(args)
+    print("\n\n\nARGS: ", args, "\n\n\n")
+
+    data_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), '../run_logs')
+
+    if not (os.path.exists(data_path)):
+        os.makedirs(data_path)
+
+    logdir = args.exp_name + '_' + time.strftime("%d-%m-%Y_%H-%M-%S")
+    logdir = os.path.join(data_path, logdir)
+    if not(os.path.exists(logdir)):
+        os.makedirs(logdir)
+
+    print("\n\n\nLOGGING TO: ", logdir, "\n\n\n")
+
+    run_ppo(args, log_dir=logdir)
