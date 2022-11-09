@@ -2,35 +2,41 @@
 Runs the random agent.
 
 Example usage:
-    python ./run_scripts/run_ppo.py --exp_name ppo --save_model --total_timesteps 50
+    python ./run_scripts/run_ppo.py --exp_name ppo --total_timesteps 2000000 --save_model
+    python ./run_scripts/run_ppo.py --exp_name ppo --load_model_path run_logs/ppo_09-11-2022_15-07-35/ppo.zip --save_midi
 """
 import os
 import time
 
 from env import RoboNotesEnv
 import argparse
-from utils import plot_performance
 
 from stable_baselines3 import PPO
 from stable_baselines3.common.env_checker import check_env
-from stable_baselines3.common.vec_env import DummyVecEnv
 
 MIDI_SAVEDIR = "./samples/ppo/"
+
 
 def create_ppo_model(env, args, log_dir=None):
     model = PPO("MlpPolicy", env,
                 learning_rate=args.learning_rate,
+                n_steps=args.n_steps,
                 batch_size=args.batch_size,
+                n_epochs=args.n_epochs,
+                gamma=args.gamma,
+                gae_lambda=args.gae_lambda,
+                normalize_advantage=args.normalize_advantage,
                 tensorboard_log=log_dir)
 
     return model
+
 
 def train_loop(model, timesteps, log_interval, test_interval, progress_bar=True):
     #TODO: add EvalCallback to use test_interval
     model.learn(total_timesteps=timesteps, log_interval=log_interval, progress_bar=progress_bar)
 
 
-def sample_test_trajectory(model, env, num_trajectories=20):
+def sample_test_trajectory(model, env, num_trajectories=10):
     """
     Test the model by sampling trajectories and render() after each one (saves MIDI if path provided)
     :param model:
@@ -48,6 +54,7 @@ def sample_test_trajectory(model, env, num_trajectories=20):
             env.render()
             obs, _ = env.reset()
 
+
 def run_ppo(args, log_dir=None):
     midi_savedir = MIDI_SAVEDIR if args.save_midi else None
     
@@ -55,9 +62,6 @@ def run_ppo(args, log_dir=None):
     check_env(env)
 
     model = create_ppo_model(env, args, log_dir=log_dir)
-
-    model = PPO("MlpPolicy", env, verbose=1)
-    model.learn(total_timesteps=25000)
 
     if args.load_model_path:
         print(f"Skipping training. Loading model from path: {args.load_model_path}")
@@ -84,7 +88,7 @@ if __name__ == "__main__":
     # train parameters
     parser.add_argument("--total_timesteps", type=int, default=10000000, required=False,
                         help="number of timesteps (env steps) to train")
-    parser.add_argument("--log_interval", type=int, default=100, required=False,
+    parser.add_argument("--log_interval", type=int, default=1, required=False,
                         help="number of timesteps before logging")
     parser.add_argument("--test_interval", type=int, default=100000, required=False,
                         help="number of timesteps before testing")
@@ -111,18 +115,21 @@ if __name__ == "__main__":
     parser.add_argument("--load_model_path", type=str,
                         help="If provided, path of the dqn model to load.", required=False)
     args = parser.parse_args()
-    print("\n\n\nARGS: ", args, "\n\n\n")
+    print("\nARGS: ", args, "\n")
 
     data_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), '../run_logs')
 
     if not (os.path.exists(data_path)):
         os.makedirs(data_path)
 
-    logdir = args.exp_name + '_' + time.strftime("%d-%m-%Y_%H-%M-%S")
-    logdir = os.path.join(data_path, logdir)
-    if not(os.path.exists(logdir)):
-        os.makedirs(logdir)
+    if args.load_model_path:
+        logdir = None
+    else:
+        logdir = args.exp_name + '_' + time.strftime("%d-%m-%Y_%H-%M-%S")
+        logdir = os.path.join(data_path, logdir)
+        if not(os.path.exists(logdir)):
+            os.makedirs(logdir)
 
-    print("\n\n\nLOGGING TO: ", logdir, "\n\n\n")
+    print("\nLOGGING TO: ", logdir, "\n")
 
     run_ppo(args, log_dir=logdir)

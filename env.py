@@ -110,6 +110,6 @@ class RoboNotesEnv(Env):
 
         if self.midi_savedir:
             t = time.localtime()
-            timestamp = time.strftime('%m-%d-%y_%H%M', t)
+            timestamp = time.strftime('%m-%d-%y_%H%M%s', t)
             fname = f"ts{timestamp}_ep{len(render_trajectory)}.midi"
             convert_to_midi_file(midi_sequence, os.path.join(self.midi_savedir, fname))
