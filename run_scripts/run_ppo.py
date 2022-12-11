@@ -3,12 +3,15 @@ Runs the random agent.
 
 Example usage:
     python ./run_scripts/run_ppo.py --exp_name ppo --total_timesteps 2000000 --save_model
-    python ./run_scripts/run_ppo.py --exp_name ppo --load_model_path run_logs/ppo_09-11-2022_15-07-35/ppo.zip --save_midi
+    python ./run_scripts/run_ppo.py --exp_name ppo_multi --total_timesteps 2000000 --num_pitches 3 --save_model
+    python ./run_scripts/run_ppo.py --exp_name ppo --load_model_path run_logs/ppo_11-12-2022_10-37-35/ppo.zip \
+        --num_pitches 2 --save_midi
 """
 import os
 import time
 
 from env import RoboNotesEnv
+from complex_env import RoboNotesComplexEnv
 import argparse
 
 from stable_baselines3 import PPO
@@ -57,8 +60,13 @@ def sample_test_trajectory(model, env, num_trajectories=10):
 
 def run_ppo(args, log_dir=None):
     midi_savedir = MIDI_SAVEDIR if args.save_midi else None
-    
-    env = RoboNotesEnv(max_trajectory_len=args.max_trajectory_len, midi_savedir=midi_savedir)
+
+    if args.num_pitches > 1:
+        env = RoboNotesComplexEnv(max_trajectory_len=args.max_trajectory_len,
+                                  num_pitches=args.num_pitches,
+                                  midi_savedir=midi_savedir)
+    else:
+        env = RoboNotesEnv(max_trajectory_len=args.max_trajectory_len, midi_savedir=midi_savedir)
     check_env(env)
 
     model = create_ppo_model(env, args, log_dir=log_dir)
@@ -109,6 +117,8 @@ if __name__ == "__main__":
     # env parameters
     parser.add_argument("--max_trajectory_len", type=int, default=20, required=False,
                         help="Length of music composition (number of beats)")
+    parser.add_argument("--num_pitches", type=int, default=1, required=False,
+                        help="Number of pitches.")
     # other parameters
     parser.add_argument("--save_midi", action="store_true", help="Whether or not to save MIDI output")
     parser.add_argument("--save_model", action="store_true", help="Whether or not to save trained dqn model")

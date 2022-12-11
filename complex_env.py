@@ -10,7 +10,7 @@ import numpy as np
 from collections import defaultdict
 
 
-class RoboNotesEnv(Env):
+class RoboNotesComplexEnv(Env):
     """
     A music composition environment.
     """
@@ -18,20 +18,21 @@ class RoboNotesEnv(Env):
         "render_modes": ["human"]
     }
 
-    def __init__(self, max_trajectory_len: int, midi_savedir=None):
+    def __init__(self, max_trajectory_len: int, num_pitches=2, midi_savedir=None):
         """
 
         :param max_trajectory_len: Max number of timesteps in the composition. Each ts is a 16th note.
         :param midi_savedir: If given, save MIDI file during render()
         """
-        super(RoboNotesEnv, self).__init__()
+        super(RoboNotesComplexEnv, self).__init__()
 
         # choose from 36 pitches, with 2 special actions (0=no_event, 1=note_off)
-        self.action_space = spaces.Discrete(38)
+        self.action_space = spaces.Box(low=0, high=37, shape=(num_pitches,), dtype=int)
         # observation space is the sequence of notes of max_trajectory_len
-        self.observation_space = spaces.Box(low=0, high=37, shape=(max_trajectory_len,), dtype=int)
+        self.observation_space = spaces.Box(low=0, high=37, shape=(max_trajectory_len, num_pitches), dtype=int)
 
         self.max_trajectory_len = max_trajectory_len
+        self.num_pitches = num_pitches
         self.midi_savedir = midi_savedir
 
         self.obs_trajectory = self.get_initial_ob()
@@ -42,7 +43,7 @@ class RoboNotesEnv(Env):
 
     def get_initial_ob(self) -> np.ndarray:
         # action=0 means no_event
-        return np.zeros(self.max_trajectory_len, dtype='int')
+        return np.zeros((self.max_trajectory_len, self.num_pitches), dtype='int')
 
     def reset(
             self,
@@ -50,7 +51,7 @@ class RoboNotesEnv(Env):
             seed: Optional[int] = None,
             options: Optional[dict] = None,
     ) -> Tuple[np.ndarray, dict]:
-        super(RoboNotesEnv, self).reset(seed=seed)
+        super(RoboNotesComplexEnv, self).reset(seed=seed)
 
         self.obs_trajectory = self.get_initial_ob()
         self.total_reward = 0
@@ -58,7 +59,7 @@ class RoboNotesEnv(Env):
         self.partial_rewards = defaultdict(int)
         return self.obs_trajectory, {}
 
-    def step(self, action: int) -> Tuple[np.ndarray, float, bool, bool, dict]:
+    def step(self, action: List[int]) -> Tuple[np.ndarray, float, bool, bool, dict]:
         self.obs_trajectory[self.trajectory_idx] = action
         self.trajectory_idx += 1
 
@@ -75,7 +76,7 @@ class RoboNotesEnv(Env):
 
     @staticmethod
     def save_midi(trajectory: np.ndarray, midi_savedir):
-        render_trajectory = list(trajectory)
+        render_trajectory: List = trajectory.tolist()
         midi_sequence = convert_observation_to_midi_sequence(render_trajectory)
         total_reward = 0
         total_info = {}
@@ -101,7 +102,7 @@ class RoboNotesEnv(Env):
         We render the current state by printing the encoded actions and its corresponding MIDI sequence.
         TODO: can try to render and/or play MIDI file directly
         """
-        render_trajectory = list(self.obs_trajectory)
+        render_trajectory: List = self.obs_trajectory.tolist()
         midi_sequence = convert_observation_to_midi_sequence(render_trajectory)
         print(f"Total reward: {self.total_reward}")
         print(f"Partial rewards: {self.partial_rewards}")
