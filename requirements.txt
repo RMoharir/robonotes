@@ -4,3 +4,4 @@ gym==0.26.2
 statsmodel
 tensorflow
 git+https://github.com/carlosluis/stable-baselines3@fix_tests
+mido
