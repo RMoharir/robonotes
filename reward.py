@@ -127,7 +127,7 @@ def get_repeat_penalty(observation: List) -> float:
 
         for track in pitches:
             total_reward += _repeat_reward(track)
-        return total_reward / num_pitches
+        return 1.0 * total_reward / num_pitches
     return _repeat_reward(observation)
 
 
@@ -223,7 +223,7 @@ def get_diversity_reward(observation: List) -> float:
             pitch_obs = [obs[pitch_idx] for obs in observation]
             _, counts = np.unique(pitch_obs, return_counts=True)
             h += entropy(counts) / len(observation)
-        h = h / num_pitches
+        h = h * 1.0 / num_pitches
     else:
         # try entropy instead
         _, counts = np.unique(observation, return_counts=True)

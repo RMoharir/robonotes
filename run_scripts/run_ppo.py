@@ -39,7 +39,7 @@ def train_loop(model, timesteps, log_interval, test_interval, progress_bar=True)
     model.learn(total_timesteps=timesteps, log_interval=log_interval, progress_bar=progress_bar)
 
 
-def sample_test_trajectory(model, env, num_trajectories=10):
+def sample_test_trajectory(model, env, num_trajectories=3):
     """
     Test the model by sampling trajectories and render() after each one (saves MIDI if path provided)
     :param model:
@@ -56,6 +56,7 @@ def sample_test_trajectory(model, env, num_trajectories=10):
         if terminated:
             env.render()
             obs, _ = env.reset()
+        time.sleep(2)
 
 
 def run_ppo(args, log_dir=None):
