@@ -2,7 +2,6 @@ from typing import List
 import numpy as np
 import random
 from imitation.data.types import Trajectory
-from midi_reader import load_midi_files
 
 
 class RoboNotesSampler(object):

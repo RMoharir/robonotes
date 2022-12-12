@@ -3,8 +3,8 @@ Runs the random agent.
 
 Example usage:
     python ./run_scripts/run_ppo.py --exp_name ppo --total_timesteps 2000000 --save_model
-    python ./run_scripts/run_ppo.py --exp_name ppo_multi --total_timesteps 2000000 --num_pitches 3 --save_model
-    python ./run_scripts/run_ppo.py --exp_name ppo --load_model_path run_logs/ppo_11-12-2022_10-37-35/ppo.zip \
+    python ./run_scripts/run_ppo.py --exp_name ppo_multi2 --total_timesteps 2000000 --num_pitches 3 --save_model --save_midi
+    python ./run_scripts/run_ppo.py --exp_name ppo --load_model_path run_logs/ppo_multi_11-12-2022_13-04-29/ppo.zip \
         --num_pitches 2 --save_midi
 """
 import os
@@ -95,7 +95,7 @@ if __name__ == "__main__":
     parser.add_argument("--exp_name", type=str, required=True, help="name the experiment, for log dir")
 
     # train parameters
-    parser.add_argument("--total_timesteps", type=int, default=10000000, required=False,
+    parser.add_argument("--total_timesteps", type=int, default=10000002, required=False,
                         help="number of timesteps (env steps) to train")
     parser.add_argument("--log_interval", type=int, default=1, required=False,
                         help="number of timesteps before logging")

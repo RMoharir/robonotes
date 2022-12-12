@@ -14,7 +14,7 @@ import argparse
 from stable_baselines3.common.env_checker import check_env
 from imitation.algorithms import bc
 from imitation.data.rollout import flatten_trajectories
-from sampler import RoboNotesSampler
+from midi.sampler import RoboNotesSampler
 import numpy as np
 
 MIDI_SAVEDIR = "./samples/bc/"
@@ -81,6 +81,8 @@ def run_bc(args, log_dir=None):
     if args.load_model_path:
         print(f"Skipping training. Loading model from path: {args.load_model_path}")
         model = bc.reconstruct_policy(args.load_model_path)
+        print("Finished. Sampling test trajectories.")
+        sample_test_trajectory(model, env)
     else:
         print(f"Start training.")
         train_loop(
@@ -91,8 +93,8 @@ def run_bc(args, log_dir=None):
         if args.save_model:
             model.save_policy(f"{log_dir}/bc")
 
-    print("Finished. Sampling test trajectories.")
-    sample_test_trajectory(model, env)
+        print("Finished. Sampling test trajectories.")
+        sample_test_trajectory(model.policy, env)
 
 
 if __name__ == "__main__":

@@ -4,8 +4,8 @@ import os
 
 from gym import Env, spaces
 from reward import calc_reward
-from midi_writer import convert_observation_to_midi_sequence
-from midi_writer import convert_to_midi_file
+from midi.midi_writer import convert_observation_to_midi_sequence
+from midi.midi_writer import convert_to_midi_file
 import numpy as np
 from collections import defaultdict
 
